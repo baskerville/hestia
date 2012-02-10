@@ -35,6 +35,9 @@
         preview FID
             Preview a download. 
 
+        priority VALUE FID ...
+            Change the priority of given downloads.
+
         kill
             Kill the mldonkey daemon.
 

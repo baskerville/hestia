@@ -4,7 +4,6 @@
 import re, sys
 import http.client
 from os.path import basename
-from itertools import repeat, chain, cycle, compress
 
 SERVER_DOMAIN = 'localhost:4080'
 SERVER_PATH_PREFIX = '/submit?q='
@@ -26,10 +25,11 @@ ACT_REQ_MAP = {'list'     : 'vd',
                'resume'   : 'resume+%s',
                'kill'     : 'kill',
                'preview'  : 'preview+%s',
+               'priority'  : 'priority+%s',
                'search'   : 's+%s'}
 
 SIMPLE_ACTIONS = ['add', 'pause', 'resume', 'cancel', 'preview', \
-                  'search', 'forget', 'kill']
+                  'priority', 'search', 'forget', 'kill']
 
 connection = None
 
@@ -70,13 +70,13 @@ def show_downloads():
     request(path)
     data = response()
     values = re.findall('<td[^>]*class="dl a."[^>]*>([^<]*)', data, re.I)
-    did = re.findall("vd\+(\d+)'", data, re.I)
-    udid = compress(did, cycle(chain([1], repeat(0, FID_REPEAT))))
     values = list(map(lambda x: x.strip(), values))
+    fid_prio = re.findall("submitPriority\((\d+),(\d+)", data, re.I)
     infos = chunks(values, LIST_COLUMNS)
-    for fid, dl in zip(udid, infos):
+    for fp, dl in zip(fid_prio, infos):
         (network, filename, size, completed, percent, comment, source, active, availability, age, last, rate, eta, priority) = dl
-        line = '%3s %-50s %6s %6s%% %6s %3s %3s %8s' % (fid, filename, size, percent, rate, active, source, eta)
+        (fid, priority) = map(lambda x: x.strip(), fp)
+        line = '%3s %-50s %6s %6s%% %6s %3s %3s %8s %5s' % (fid, filename, size, percent, rate, active, source, eta, priority)
         if sys.stdout.isatty():
             if rate == 'Paused':
                 line = magenta(line)
@@ -153,6 +153,9 @@ ACTIONS
     preview FID
         Preview a download. 
 
+    priority VALUE FID ...
+        Change the priority of given downloads.
+
     kill
         Kill the mldonkey daemon.
     ''' % basename(sys.argv[0]))
@@ -169,6 +172,7 @@ def main():
     args = args[1:]
 
     if action in ['add', 'pause', 'resume', 'cancel', 'forget', 'search'] and len(args) < 1 \
+    or action in ['priority'] and len(args) < 2 \
     or action in ['preview'] and len(args) > 1 \
     or action in ['list', 'queries', 'kill'] and len(args) > 0:
         print('wrong number of arguments', file=sys.stderr)

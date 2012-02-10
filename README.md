@@ -2,7 +2,7 @@
 
 
     SYNOPSIS
-        %s <action> [arguments]
+        hestia <action> [arguments]
 
     ACTIONS 
         list

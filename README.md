@@ -38,7 +38,7 @@
         kill
             Kill the mldonkey daemon.
 
-## Requierements
+## Requirements
 
 - python 3
 - mldonkey

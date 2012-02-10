@@ -1,0 +1,204 @@
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
+
+import re, sys
+import http.client
+from os.path import basename
+from itertools import repeat, chain, cycle, compress
+
+SERVER_DOMAIN = 'localhost:4080'
+SERVER_PATH_PREFIX = '/submit?q='
+SERVER_MSG = 'GET'
+LIST_COLUMNS = 14
+FID_REPEAT = 12
+RESULT_COLUMNS = 6
+
+ACT_REQ_MAP = {'list'     : 'vd',
+               'queries'  : 'vs',
+               'search'   : 's+%s',
+               'results'  : 'vr+%s',
+               '!results' : 'vr',
+               'forget'   : 'forget+%s',
+               'add'      : 'd+%s',
+               'cancel'   : 'cancel+%s',
+               '!confirm' : 'confirm+yes',
+               'pause'    : 'pause+%s',
+               'resume'   : 'resume+%s',
+               'kill'     : 'kill',
+               'preview'  : 'preview+%s',
+               'search'   : 's+%s'}
+
+SIMPLE_ACTIONS = ['add', 'pause', 'resume', 'cancel', 'preview', \
+                  'search', 'forget', 'kill']
+
+connection = None
+
+def simple_action(action, args = []):
+    path = ACT_REQ_MAP[action]
+    request(path, args)
+    if action != 'kill':
+        data = response()
+
+def view_queries():
+    path = ACT_REQ_MAP['queries']
+    request(path)
+    data = response()
+    values = re.findall('<a[^>]*href="submit\?q=vr\+(\d+)">[^(A-Z]+([^<]+)', data, re.I)
+    for sid, ss in values:
+        terms = ' '.join(re.findall('CONTAINS\[([^]]+)\]', ss))
+        print('%3s %s' % (sid, terms))
+
+def view_results(args):
+    if len(args) < 1:
+        path = ACT_REQ_MAP['!results']
+    else:
+        path = ACT_REQ_MAP['results']
+    request(path, args)
+    data = response()
+    values = re.findall('<td[^>]*class="sr a."[^>]*>([^<]*)', data, re.I)
+    fns = re.findall('<a[^>]*href=results\?d=\d+[^>]*>([^<]*)', data, re.I)
+    values = list(map(lambda x: x.strip(), values))
+    infos = chunks(values, RESULT_COLUMNS)
+    ids = range(1, len(infos) + 1)
+    for fid, filename, res in zip(ids, fns, infos):
+        (size, availability, source, duration, codec, bitrate) = res
+        filename = filename.strip()
+        print('%3s %-50s %7s %4s %4s %5s' % (fid, filename, size, availability, source, codec)) 
+
+def show_downloads():
+    path = ACT_REQ_MAP['list']
+    request(path)
+    data = response()
+    values = re.findall('<td[^>]*class="dl a."[^>]*>([^<]*)', data, re.I)
+    did = re.findall("vd\+(\d+)'", data, re.I)
+    udid = compress(did, cycle(chain([1], repeat(0, FID_REPEAT))))
+    values = list(map(lambda x: x.strip(), values))
+    infos = chunks(values, LIST_COLUMNS)
+    for fid, dl in zip(udid, infos):
+        (network, filename, size, completed, percent, comment, source, active, availability, age, last, rate, eta, priority) = dl
+        line = '%3s %-50s %6s %6s%% %6s %3s %3s %8s' % (fid, filename, size, percent, rate, active, source, eta)
+        if sys.stdout.isatty():
+            if rate == 'Paused':
+                line = magenta(line)
+            elif rate != '-':
+                line = blue(line)
+        print(line)
+
+def request(path, args = []):
+    global connection
+    if len(args) > 0:
+        full_path = SERVER_PATH_PREFIX + (path % args)
+    else:
+        full_path = SERVER_PATH_PREFIX + path
+    try:
+        connection.request(SERVER_MSG, full_path)
+    except IOError as err:
+        code = err.errno
+        if code == 111:
+            print('the daemon is not running', file = sys.stderr)
+        else:
+            print('server replied: %s' % code, file = sys.stderr)
+        exit(1)
+
+def response():
+    global connection
+    resp = connection.getresponse()
+    if resp.status != 200:
+        print('server replied: %s %s' % (resp.status, resp.reason), file = sys.stderr)
+        sys.exit(1)
+    data = resp.read()
+    data = data.decode('utf-8', 'replace')
+    return data
+
+def initiate_connection(domain = SERVER_DOMAIN):
+    global connection
+    if connection != None:
+        connection.close()
+
+    connection = http.client.HTTPConnection(domain)
+
+def help():
+    print('''
+SYNOPSIS
+    %s <action> [arguments]
+
+ACTIONS 
+    list
+        View current downloads.
+
+    queries
+        View all queries.
+
+    search TERMS
+        Search for TERMS on all networks.
+
+    results [QID ...]
+        View the results of the given queries.
+
+    forget QID ...
+        Forget the given queries.
+
+    add FID ...
+        Download the given files.
+
+    pause FID ...
+        Pause the given downloads.
+
+    resume FID ...
+        Resume the given downloads.
+
+    cancel FID ...
+        Cancel the given downloads.
+
+    preview FID
+        Preview a download. 
+
+    kill
+        Kill the mldonkey daemon.
+    ''' % basename(sys.argv[0]))
+
+def main():
+    args = sys.argv[1:]
+    if len(args) < 1:
+        help()
+        sys.exit(1)
+
+    initiate_connection()
+
+    action = args[0]
+    args = args[1:]
+
+    if action in ['add', 'pause', 'resume', 'cancel', 'forget', 'search'] and len(args) < 1 \
+    or action in ['preview'] and len(args) > 1 \
+    or action in ['list', 'queries', 'kill'] and len(args) > 0:
+        print('wrong number of arguments', file=sys.stderr)
+        sys.exit(1)
+
+    if len(args) > 0:
+        args = tuple(['+'.join(args)])
+
+    if action == 'list':
+        show_downloads()
+    elif action == 'queries':
+        view_queries()
+    elif action == 'results':
+        view_results(args)
+    elif action in SIMPLE_ACTIONS:
+        simple_action(action, args)
+        if action == 'cancel':
+            simple_action('!confirm')
+    else:
+        print("action '{}' is unknown".format(action), file=sys.stderr)
+        sys.exit(1)
+
+def blue(s):
+    return '\033[1;34m%s\033[0m' % s
+
+def magenta(s):
+    return '\033[1;35m%s\033[0m' % s
+
+def chunks(l, n):
+    return [l[i:i+n] for i in range(0, len(l), n)]
+
+if __name__ == '__main__':
+    main()

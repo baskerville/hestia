@@ -74,7 +74,7 @@ def show_downloads():
     fid_prio = re.findall("submitPriority\((\d+),(\d+)", data, re.I)
     infos = chunks(values, LIST_COLUMNS)
     for fp, dl in zip(fid_prio, infos):
-        (network, filename, size, completed, percent, comment, source, active, availability, age, last, rate, eta, priority) = dl
+        (network, filename, size, completed, percent, comment, source, active, availability, age, last, rate, eta, blur) = dl
         (fid, priority) = map(lambda x: x.strip(), fp)
         line = '%3s %-50s %6s %6s%% %6s %3s %3s %8s %5s' % (fid, filename, size, percent, rate, active, source, eta, priority)
         if sys.stdout.isatty():

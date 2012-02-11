@@ -8,6 +8,9 @@
         list
             View current downloads.
 
+        servers
+            View connected servers.
+
         queries
             View all queries.
 

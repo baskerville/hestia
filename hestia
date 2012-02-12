@@ -58,10 +58,12 @@ def view_queries():
     path = ACT_REQ_MAP['queries']
     request(path)
     data = response()
+    founds = re.findall('found (\d+)', data, re.I)
     values = re.findall('<a[^>]*href="submit\?q=vr\+(\d+)">[^(A-Z]+([^<]+)', data, re.I)
-    for sid, ss in values:
-        terms = ' '.join(re.findall('CONTAINS\[([^]]+)\]', ss))
-        print('%3s %s' % (sid, terms))
+    for sid_query, numres in zip(values, founds):
+        (sid, query) = sid_query
+        terms = ' '.join(re.findall('CONTAINS\[([^]]+)\]', query))
+        print('%3s %-30s %4s' % (sid, terms, numres))
 
 def truncate_filename(name, to_length, tail_len, ellipsis):
     if len(name) > to_length:
@@ -105,7 +107,7 @@ def view_downloads():
     for fp, dl in zip(fid_prio, infos):
         (network, filename, size, completed, percent, comment, source, active, availability, age, last, rate, eta, blur) = dl
         (fid, priority) = map(lambda x: x.strip(), fp)
-        line = '%3s %-50s %6s %6s%% %6s %3s %3s %8s %5s' % (fid, filename, size, percent, rate, active, source, eta, priority)
+        line = '%3s %-50s %6s%% %8s %6s %3s %3s %8s %5s' % (fid, filename, percent, size, rate, active, source, eta, priority)
         if sys.stdout.isatty():
             if rate == 'Paused':
                 line = magenta(line)

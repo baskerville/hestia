@@ -3,6 +3,8 @@
 
 import re, sys
 import http.client
+from html.parser import HTMLParser
+from urllib.parse import unquote
 from subprocess import check_call
 from os.path import basename, expanduser
 
@@ -19,7 +21,6 @@ INFO_COMMAND = 'mediainfo'
 MLDK_TEMP_DIR = expanduser('~/.mldonkey/temp')
 
 ACT_REQ_MAP = {'list'     : 'vd',
-               'info'     : 'vd+%s',
                'servers'  : 'vm',
                'queries'  : 'vs',
                'search'   : 's+%s',
@@ -33,6 +34,7 @@ ACT_REQ_MAP = {'list'     : 'vd',
                'resume'   : 'resume+%s',
                'kill'     : 'kill',
                'preview'  : 'preview+%s',
+               'info'     : 'vd+%s',
                'priority'  : 'priority+%s',
                'search'   : 's+%s'}
 
@@ -100,13 +102,31 @@ def view_results(args):
         filename = truncate_filename(filename, FILENAME_MAX_LEN, FILENAME_TAIL_LEN, FILENAME_ELLIPSIS)
         print('%3s %-80s %7s %4s %4s %5s' % (fid, filename, size, availability, source, codec)) 
 
-def download_info(args):
+def get_path(args):
     path = ACT_REQ_MAP['info']
     request(path, args)
     data = response()
     hashes = re.findall('urn:ed2k:([^"]+)', data, re.I)
     for md4h in hashes:
-        check_call([INFO_COMMAND, '%s/urn_ed2k_%s' % (MLDK_TEMP_DIR, md4h)])
+        return '%s/urn_ed2k_%s' % (MLDK_TEMP_DIR, md4h)
+
+def download_info(args):
+    file_path = get_path(args)
+    check_call([INFO_COMMAND, file_path])
+ 
+def view_names(args):
+    path = ACT_REQ_MAP['info']
+    request(path, args)
+    data = response()
+    aka = re.findall('<option value="([^"]+)"', data, re.I)
+    aka = aka[3:]
+    for name in aka:
+        clean_name = unquote(HTMLParser().unescape(name))
+        print(clean_name)
+
+def view_path(args):
+    file_path = get_path(args)
+    print(file_path)
  
 def view_downloads():
     path = ACT_REQ_MAP['list']
@@ -202,6 +222,12 @@ ACTIONS
     info FID
         Retrieve informations regarding FID (requires `mediainfo`).
 
+    names FID
+        Display all the known names for FID.
+
+    path FID
+        Return the path of the file holding FID's content.
+
     priority VALUE FID ...
         Change the priority of given downloads.
 
@@ -220,9 +246,9 @@ def main():
     action = args[0]
     args = args[1:]
 
-    if action in ['add', 'pause', 'resume', 'cancel', 'forget', 'search', 'preview', 'info'] and len(args) < 1 \
+    if action in ['add', 'pause', 'resume', 'cancel', 'forget', 'search', 'preview', 'path', 'info', 'names'] and len(args) < 1 \
     or action in ['priority'] and len(args) < 2 \
-    or action in ['preview', 'info'] and len(args) > 1 \
+    or action in ['preview', 'path', 'info', 'names'] and len(args) > 1 \
     or action in ['list', 'servers', 'queries', 'kill'] and len(args) > 0:
         print('wrong number of arguments', file=sys.stderr)
         sys.exit(1)
@@ -236,6 +262,10 @@ def main():
         view_servers()
     elif action == 'queries':
         view_queries()
+    elif action == 'path':
+        view_path(args)
+    elif action == 'names':
+        view_names(args)
     elif action == 'info':
         download_info(args)
     elif action == 'results':

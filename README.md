@@ -41,6 +41,12 @@
         info FID
             Retrieve informations regarding FID (requires `mediainfo`).
 
+        names FID
+            Display all the known names for FID.
+
+        path FID
+            Return the path of the file holding FID's content.
+
         priority VALUE FID ...
             Change the priority of given downloads.
 

@@ -14,7 +14,7 @@
         queries
             View all queries.
 
-        search TERMS
+        search [-media <Video|Audio|Doc|Pro>] TERMS
             Search for TERMS on all networks.
 
         results [QID ...]
@@ -37,6 +37,9 @@
 
         preview FID
             Preview a download. 
+
+        info FID
+            Retrieve informations regarding FID (requires `mediainfo`).
 
         priority VALUE FID ...
             Change the priority of given downloads.

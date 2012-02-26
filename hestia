@@ -3,7 +3,8 @@
 
 import re, sys
 import http.client
-from os.path import basename
+from subprocess import check_call
+from os.path import basename, expanduser
 
 SERVER_DOMAIN = 'localhost:4080'
 SERVER_PATH_PREFIX = '/submit?q='
@@ -14,8 +15,11 @@ RESULT_COLUMNS = 6
 FILENAME_MAX_LEN = 80
 FILENAME_TAIL_LEN = 5 
 FILENAME_ELLIPSIS = '…'
+INFO_COMMAND = 'mediainfo'
+MLDK_TEMP_DIR = expanduser('~/.mldonkey/temp')
 
 ACT_REQ_MAP = {'list'     : 'vd',
+               'info'     : 'vd+%s',
                'servers'  : 'vm',
                'queries'  : 'vs',
                'search'   : 's+%s',
@@ -96,6 +100,14 @@ def view_results(args):
         filename = truncate_filename(filename, FILENAME_MAX_LEN, FILENAME_TAIL_LEN, FILENAME_ELLIPSIS)
         print('%3s %-80s %7s %4s %4s %5s' % (fid, filename, size, availability, source, codec)) 
 
+def download_info(args):
+    path = ACT_REQ_MAP['info']
+    request(path, args)
+    data = response()
+    hashes = re.findall('urn:ed2k:([^"]+)', data, re.I)
+    for md4h in hashes:
+        check_call([INFO_COMMAND, '%s/urn_ed2k_%s' % (MLDK_TEMP_DIR, md4h)])
+ 
 def view_downloads():
     path = ACT_REQ_MAP['list']
     request(path)
@@ -187,6 +199,9 @@ ACTIONS
     preview FID
         Preview a download. 
 
+    info FID
+        Retrieve informations regarding FID (requires `mediainfo`).
+
     priority VALUE FID ...
         Change the priority of given downloads.
 
@@ -205,9 +220,9 @@ def main():
     action = args[0]
     args = args[1:]
 
-    if action in ['add', 'pause', 'resume', 'cancel', 'forget', 'search'] and len(args) < 1 \
+    if action in ['add', 'pause', 'resume', 'cancel', 'forget', 'search', 'preview', 'info'] and len(args) < 1 \
     or action in ['priority'] and len(args) < 2 \
-    or action in ['preview'] and len(args) > 1 \
+    or action in ['preview', 'info'] and len(args) > 1 \
     or action in ['list', 'servers', 'queries', 'kill'] and len(args) > 0:
         print('wrong number of arguments', file=sys.stderr)
         sys.exit(1)
@@ -221,6 +236,8 @@ def main():
         view_servers()
     elif action == 'queries':
         view_queries()
+    elif action == 'info':
+        download_info(args)
     elif action == 'results':
         view_results(args)
     elif action in SIMPLE_ACTIONS:

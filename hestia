@@ -17,7 +17,8 @@ RESULT_COLUMNS = 6
 FILENAME_MAX_LEN = 80
 FILENAME_TAIL_LEN = 5 
 FILENAME_ELLIPSIS = '…'
-INFO_COMMAND = 'mediainfo'
+INFO_COMMAND = 'fileinfo'
+PREVIEW_COMMAND = 'open'
 MLDK_TEMP_DIR = expanduser('~/.mldonkey/temp')
 
 ACT_REQ_MAP = {'list'     : 'vd',
@@ -38,7 +39,7 @@ ACT_REQ_MAP = {'list'     : 'vd',
                'priority'  : 'priority+%s',
                'search'   : 's+%s'}
 
-SIMPLE_ACTIONS = ['add', 'pause', 'resume', 'cancel', 'preview', \
+SIMPLE_ACTIONS = ['add', 'pause', 'resume', 'cancel', \
                   'priority', 'search', 'forget', 'kill']
 
 connection = None
@@ -113,7 +114,11 @@ def get_path(args):
 def download_info(args):
     file_path = get_path(args)
     check_call([INFO_COMMAND, file_path])
- 
+
+def preview_download(args): 
+    file_path = get_path(args)
+    check_call([PREVIEW_COMMAND, file_path])
+
 def view_names(args):
     path = ACT_REQ_MAP['info']
     request(path, args)
@@ -266,6 +271,8 @@ def main():
         view_path(args)
     elif action == 'names':
         view_names(args)
+    elif action == 'preview':
+        preview_download(args)
     elif action == 'info':
         download_info(args)
     elif action == 'results':

@@ -38,6 +38,9 @@
         preview FID
             Preview a download. 
 
+        rename FID NAME
+            Set FID's filename to NAME.
+
         info FID
             Retrieve informations regarding FID (requires `mediainfo`).
 

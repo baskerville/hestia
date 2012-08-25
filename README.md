@@ -47,6 +47,9 @@
         names FID
             Display all the known names for FID.
 
+        magic FID
+            Display the file magic informations for FID.
+
         path FID
             Return the path of the file holding FID's content.
 

@@ -173,7 +173,7 @@ def view_downloads():
         line = '%3s %-50s %6s%% %8s %8s %6s %3s %3s %8s %5s' % (fid, filename, percent, completed, size, rate, active, source, eta, priority)
         if sys.stdout.isatty():
             if rate == 'Paused':
-                line = magenta(line)
+                line = grey(line)
             elif rate != '-':
                 line = blue(line)
         print(line)
@@ -361,9 +361,6 @@ def grey(s):
 
 def blue(s):
     return '\033[1;34m%s\033[0m' % s
-
-def magenta(s):
-    return '\033[1;35m%s\033[0m' % s
 
 def chunks(l, n):
     return [l[i:i+n] for i in range(0, len(l), n)]
